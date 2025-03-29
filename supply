@@ -1,31 +1,64 @@
+!pip3 install xlsxwriter
 import pandas as pd
 import numpy as np
 import xlsxwriter
 import time
+import  traceback
 
 
-
-
-class data_file_initiate():  #initiating input client and local files and local file column names
+class DatafileInitiate():  #initiating input client and local files and local file column names
     def __init__(self, input_client_file = None, input_edge_file = None):
-        self.client_file_path = input_client_file                                                  # path for client file
-        self.client_sheets = pd.ExcelFile(self.client_file_path).sheet_names                        # read client excel file
+        self.client_file_path = input_client_file                                                          # path for client file
+        self.client_sheets = self.client_data_load()                      # read client excel file
 
 
-        self.edge_file_path = input_edge_file                                                          # path for local edge file
-        self.edge_sheet_open = pd.read_csv(self.edge_file_path, skiprows=13, index_col=False,
-                                           header =0 , delimiter= ',')                                          # displays edge sheet
-        self.edge_column_initiate = {'Edge_ID': ['Token'], 'Supply' : ['Supplier Name'], 'Panel_ID': ['PID'] }   # selected column name from both file to match from both file and search/vlookup
+        self.edge_file_path = input_edge_file                                                               # path for local edge file
+        self.edge_sheet_open = self.edge_data_load()                                                        # displays edge sheet
+        self.edge_column_map = {'Edge_ID': ['Token'], 'Supply' : ['Supplier Name'], 'Panel_ID': ['PID'] }   # selected column name from both file to match from both file and search/vlookup
 
 
-    
+    def client_data_load(self):  #load client data
+        try:
+            return pd.ExcelFile(self.client_file_path).sheet_names
+        except FileNotFoundError:
+            print(f'Client File {self.client_file_path} not found')
+            traceback.print_exc()
+            exit(1)
+        except ValueError as ve:
+            print(f'Client Please ensure excell file is selected, {ve}')
+            traceback.print_exc()
+            exit(1)
+        except Exception as e:
+            print(f'An error occurred, {e}')
+            traceback.print_exc()
+            exit(1)
+
+
+    def edge_data_load(self):  #load excel data
+        try:
+            return pd.read_csv(self.edge_file_path,  header=0, skiprows=13,index_col= False, delimiter=',')
+        except FileNotFoundError:
+            print(f'Edge File {self.edge_file_path} not found')
+            traceback.print_exc()
+            exit()
+        except ValueError as ve:
+            print(f'Only csv file allowed : {ve}')
+            traceback.print_exc()
+            exit()
+        except Exception as e:
+            print(f'An error occurred : {e}')
+            traceback.print_exc()
+            exit()
+
+
+
 
 
     def column_name_process(self): #get column names and values from local excel file
 
         self.column_list = {}                                                       #initiate empty dictionary
 
-        for key, value in self.edge_column_initiate.items():
+        for key, value in self.edge_column_map.items():
             setattr(self, key, self.edge_sheet_open.get(value[0]))             #assigning/setting attributes
             self.column_list_key = getattr(self, key)                               #retrieving attributes
             self.column_list[key] = self.column_list_key.tolist()                        # fill the dictionary
@@ -36,149 +69,205 @@ class data_file_initiate():  #initiating input client and local files and local 
 
 
 
-class client_area(data_file_initiate):  #dynamically show sheet names and user inputs to select from a sheet list  and display selected column(s)
+class ClientArea(DatafileInitiate):  #dynamically show sheet names and user inputs to select from a sheet list  and display selected column(s)
 
     def client_file(self):
+
+        print('\nDisplaying columns : ')
         for i, sheet in enumerate(self.client_sheets, 1):
             print(f'{i}. {sheet}  ')                                                            # to print all sheet name of the excel file
-        self.client_sheet_select = int(input('Which sheet you wanna open? '))-1                 #select the sheet index  to open from client excel file
-        self.client_sheet_name = self.client_sheets[self.client_sheet_select]                            #name of sheet from slected sheet index above
-        self.client_sheet_open = pd.read_excel(self.client_file_path, sheet_name= self.client_sheet_name) #open the selected tab from the excel file...
-        self.client_sheet_column = self.client_sheet_open.columns                                          #dispaly column names in list []
-        for j , column_index in enumerate(self.client_sheet_column, 1):  #print column name from the selected sheet...
-                                                                            # and display the seriel no. to each column name
-            print(f'{j}. {column_index}')
 
-        self.column_select = int(input('Which column should we consider to lookup'))-1 #select the specific column index to display from the selected sheet
-        self.selected_column_name = self.client_sheet_column[self.column_select]        #name of the column from selected column index above
-        self.client_IDs_display = pd.read_excel(self.client_file_path, sheet_name= self.client_sheet_select, usecols= [self.selected_column_name]) #display...
-                                                                                                     # ..data/rows from the selected column
+        while True:
+            try:
+                self.client_sheet_select = int(input('Which sheet you wanna open? ')) - 1  # select the sheet index  to open from client excel file
+                if 0 <= self.client_sheet_select <  len(self.client_sheets):
+                    break
+                print('Invalid sheet selection, try again')
 
-        return self.client_IDs_display, self.client_sheet_open
+
+            except ValueError as ve:
+                print(f'Please use Integers only, try again: {ve}')
+                exit()
 
 
 
+    def client_sheet_selection(self):
+
+        while True:
+            try:
+                self.client_sheet_name = self.client_sheets[
+                    self.client_sheet_select]  # name of sheet from slected sheet index above
+                self.client_sheet_open = pd.read_excel(self.client_file_path,
+                                                       sheet_name=self.client_sheet_name)  # open the selected tab from the excel file...
+                self.client_sheet_column = self.client_sheet_open.columns  # dispaly column names in list []
+                for j, column_index in enumerate(self.client_sheet_column,1):  # print column name from the selected sheet...
+                    print(f'{j}. {column_index}')  # ...and display the seriel no. to each column name
+
+                self.column_select = int(input('Which column should we consider to lookup')) - 1  # select the specific column index to display from the selected sheet
+
+                if 0 <= self.column_select > len(self.client_sheet_column):
+                    break
+                    print('Invalid selection, check the sheet no and try again')
+
+                self.selected_column_name = self.client_sheet_column[ self.column_select]  # name of the column from selected column index above
+                self.client_IDs_display = pd.read_excel(self.client_file_path, sheet_name=self.client_sheet_select, usecols=[self.selected_column_name])
+                                                                                                 # display....data/rows from the selected column
+                return self.client_IDs_display, self.client_sheet_open
+
+            except ValueError as ve:
+                print(f'Please check your input, integer only : {ve}')
+                exit(1)
+
+            except Exception as ee:
+                print(f'Check and enter correct sheet number , try again : {ee}')
+                exit(1)
 
 
-class edge_area(client_area):  #show local edge file
+
+class EdgeArea(ClientArea):  #show local edge file
     def edge_file(self):
-        self.edge_raw =r"C:\Users\prabi\OneDrive\Desktop\test_file.xlsx"
+        try:
+            self.edge_raw = r"C:\Users\prabi\OneDrive\Desktop\test_fil.xlsx"
+
+            self.edge_column = self.column_name_process()  # call dictionary of the columns name and data from column_name in initiate class
+            self.edge_data = pd.DataFrame(self.edge_column)  # place it in tabular structure via pandas ndataframe
+
+            return self.edge_data, self.edge_column
+        except FileNotFoundError as e:
+            print(f'edge_raw File not found {e}')
+            exit(1)
+
+        except Exception as ee:
+            print(f'An error occurred as {ee}')
+            exit(1)
 
 
-        self.edge_column = self.column_name_process()               #call dictionary of the columns name and data from column_name in initiate class
-        self.edge_data = pd.DataFrame(self.edge_column)             #place it in tabular structure via pandas ndataframe
 
-        '''with pd.ExcelWriter(path=self.edge_raw, engine='xlsxwriter', mode='w') as writer:
-
-            self.edge_data.to_excel(writer, index=False)
-        print('edge raw data file created')'''
-
-        return self.edge_data, self.edge_column
-
-
-class filter(edge_area): #filtering edge file as per IDs in client file then merge the data from local edge file and client file
+class DataFilter(EdgeArea): #filtering edge file as per IDs in client file then merge the data from local edge file and client file
     def filter_data(self):
-        client_excel_path = r"C:\Users\prabi\OneDrive\Desktop\client_output.xlsx"   #client sheet excel path
-        edge_excel_path = r"C:\Users\prabi\OneDrive\Desktop\edge_output.xlsx"     #local file sheet exccel path
-        merge_excel_path = r"C:\Users\prabi\OneDrive\Desktop\final_output.xlsx"  #merge file sheet excel path
-        self.edge_file()                                                         # call edge_file function
-        self.client_file()                                                       #call client_file function
 
-        #print(self.client_IDs_display)
-        #print(self.edge_column)
+        self.edge_file()  # call edge_file function
+        self.client_file()  # call client_file function
+        self.client_sheet_selection()
 
-        self.filter = self.client_IDs_display[self.selected_column_name].isin(self.edge_data['Edge_ID'])  #check for client IDs in local file to match
+        try:
+            client_excel_path = r"C:\Users\prabi\OneDrive\Desktop\client_output.xlsx"  # client sheet excel path
+            edge_excel_path = r"C:\Users\prabi\OneDrive\Desktop\edge_output.xlsx"  # local file sheet exccel path
+            merge_excel_path = r"C:\Users\prabi\OneDrive\Desktop\final_output.xlsx"  # merge file sheet excel path
 
-        if self.filter.any():                                                                            # if ID is found from above
-            self.edge_df = pd.DataFrame(self.edge_data[self.edge_data['Edge_ID'].isin(self.client_IDs_display[self.selected_column_name])])  #create
-                                                                                                     #...tabular structure of filtered IDs in dataframe
-            '''print('Matching records found')
-            time.sleep(3)
-            print('Edge filtered data is ')
-            time.sleep(2)
-            print(self.edge_filter)'''
+            # print(self.client_IDs_display)
+            # print(self.edge_column)
+            filter_set = set(self.edge_data['Edge_ID'])
+            self.filter = self.client_IDs_display[self.selected_column_name].isin(filter_set)  # check for client IDs in local file to match
 
-            #self.edge_df = pd.DataFrame(self.edge_filter)
-            #print(self.edge_filter)
-            filter_edge_excel = pd.DataFrame(self.edge_df)
+            if self.filter.any():  # if ID is found from above
+                set_ID = set(self.client_IDs_display[self.selected_column_name])
+                self.edge_df = pd.DataFrame(self.edge_data[self.edge_data['Edge_ID'].isin(set_ID)])  # create tabular structure of filtered IDs in dataframe
+                print('\nMatching records found\n')
+                time.sleep(1)
 
-
-
-        else:
-            print('Filter data not found')
+            else:
+                print('Filter data not found')
 
 
-        self.mereged_data = pd.merge(self.edge_df , self.client_sheet_open , left_on= 'Edge_ID', right_on= self.selected_column_name  ) #merge filetered
-                                                                                                  #data from local file and the client side details
+            self.mereged_data = pd.merge(self.edge_df, self.client_sheet_open, left_on='Edge_ID',
+                                        right_on=self.selected_column_name)  # merge filtered data from local file and the client side details
 
 
+            with pd.ExcelWriter(path=edge_excel_path, engine='xlsxwriter') as writer:
+                self.edge_df.to_excel(writer, index=False)
+
+                print('edge filter file created')
+                time.sleep(1)
+
+            with pd.ExcelWriter(path=client_excel_path, engine='xlsxwriter') as writer:
+                self.client_sheet_open.to_excel(writer, index=False)
+                print('client filer file created')
+                time.sleep(1)
+
+            with pd.ExcelWriter(path=merge_excel_path, engine='xlsxwriter') as writer:
+                self.mereged_data.to_excel(writer, index=False)
+                print('merged file created')
+
+            return self.filter, self.mereged_data
+
+        except FileNotFoundError as fe:
+            print(f'File not found : {fe}')
+        except Exception as e :
+            print(f'Error occurred as : {e}')
+            exit(1)
 
 
-        with pd.ExcelWriter(path= edge_excel_path, engine= 'xlsxwriter'  ) as writer :
-            self.edge_df.to_excel(writer, index= False)
-
-            print('edge filter file created')
-            time.sleep(1)
-
-        with pd.ExcelWriter(path = client_excel_path, engine = 'xlsxwriter') as writer :
-            self.client_sheet_open.to_excel(writer, index=False)
-            print('client filer file created')
-            time.sleep(1)
-
-        with pd.ExcelWriter(path = merge_excel_path, engine= 'xlsxwriter') as writer :
-            self.mereged_data.to_excel(writer,index=False)
-            print('merged file created')
-
-
-
-
-
-
-class vendor_file(filter):  # to create a specific vendor file with respective details from the vendor list in local file containing data of client file
+class VendorArea(DataFilter):  # to create a specific vendor file with respective details from the vendor list in local file containing data of client file
 
     def vendor_list(self):
         self.filter_data()    #call filter data function
 
 
-        self.unique_value = list(set(self.edge_data['Supply']))               #assign unique supply name strings
-        self.unique_array = np.array(self.unique_value).reshape(-1,1)        # to display the supply names vertically
-        #print(unique_array)
-        self.unique_array_df = pd.DataFrame(self.unique_array)                #pack the supply list in pandas dataframe
+        try:
+            self.unique_value = list(set(self.edge_data['Supply']))        # assign unique supply name strings
+            self.unique_array = np.array(self.unique_value).reshape(-1, 1)  # to display the supply names vertically print(unique_array)
+            self.unique_array_df = pd.DataFrame(self.unique_array)         # pack the supply list in pandas dataframe
+
+            print('Available vendors : \n')
+            time.sleep(.5)
+            for i, j in enumerate(self.unique_value, 1):                      # display supplier name with its serial no.
+                print(f'{i}:{j}')
+
+            self.supply_select = int(input(
+                '\nSelect the supply you want the data for...')) - 1          # user input to select supplier by its serial no.
+            self.supply_column_name = self.unique_value[self.supply_select]  # name of the supplier  user selected
+
+            print('\nSelected supply name is ')
+            print(self.supply_column_name)
+
+            if self.supply_column_name in self.mereged_data['Supply'].values:  # if selected supplier name above is..
+                                                                             # ..found boolean mask the selected supplier name
+                self.supply_file = (self.mereged_data[self.mereged_data['Supply'] == self.supply_column_name])
+            else:
+                print(f'Supply {self.supply_column_name} not found in merged data')
+
+        except ValueError as ve:
+            print(f'Error, please enter valid integer only : {ve}')
+            exit(1)
+        except Exception as ee:
+            print(f'Error, try selecting correct sheet no : {ee}')
+            exit(1)
+        except BaseException as be:
+            print(f'Some error occurred : {be}')
+            exit(1)
+
+    def column_drop(self):
+        self.vendor_list()
+        try:
+            print('Available column names\n')
+            for a, b in enumerate(self.supply_file.columns,                                  1):  # displaying column name of above supply file with its serial no.
+                print(f'{a}: {b}')
+
+            column_input = input('Which columns you want to delete? (select column serial no. separated by comma (,) ')  # user selects the column
+                                                                                          # ...name to drop
+            column_drop = [self.supply_file.columns[int(n) - 1] for n in
+                           column_input.split(',')]  # convert above string to int and split by comma
+
+            self.supply_file = self.supply_file.drop(columns=column_drop)  # deleting the column selected above
+            print(f'dropped columns are {column_drop}')
+
+            with pd.ExcelWriter(self.edge_raw, engine='xlsxwriter') as writer:
+                self.supply_file.to_excel(writer, index=False)
+
+                print('\nVendor file created')
 
 
-        for i , j in enumerate(self.unique_value , 1):                   #display supplier name with its serial no.
-            print(f'{i}:{j}')
 
-
-        self.supply_select = int(input('\nSelect the supply you want the data for...'))-1    # user input to select supplier by its serial no.
-        self.supply_column_name = self.unique_value[self.supply_select]                      #name of the supplier  user selected
-
-        print('\nSelected supply name is ')
-        print(self.supply_column_name)
-
-        if self.supply_column_name in  self.mereged_data['Supply'].values:            #if selected supplier name above is..
-                                                                                                           #..found boolean mask the selected supplier name
-            self.supply_file = (self.mereged_data[self.mereged_data['Supply'] == self.supply_column_name])
-        else:
-            print(f'Supply {self.supply_column_name} not found in merged data')
-
-        for a,b in enumerate(self.supply_file.columns, 1):            #displaying column name of above supply file with its serial no.
-            print(f'{a}: {b}')
-
-        column_input = input('Which columns you want to delete? (select column serial no. separated by comma (,) ') #user selects the column
-                                                                                                            #...name to drop
-        column_drop = [self.supply_file.columns[int(n)-1] for n in column_input.split(',')]     #convert above string to int and split by comma
-
-        self.supply_file = self.supply_file.drop(columns = column_drop)  #deleting the column selected above
-        print(f'dropped columns are {column_drop}')
-
-
-
-
-        with pd.ExcelWriter(self.edge_raw, engine='xlsxwriter') as writer:
-            self.supply_file.to_excel(writer, index=False)
-
-            print('\nVendor file created')
+        except ValueError as ve:
+            print(f'Error, please enter valid integer only : {ve}')
+            exit(1)
+        except Exception as ee:
+            print(f'Error, try selecting correct sheet no : {ee}')
+            exit(1)
+        except BaseException as be:
+            print(f'Some error occurred : {be}')
+            exit(1)
 
 
 
@@ -189,19 +278,24 @@ class vendor_file(filter):  # to create a specific vendor file with respective d
 
 
 
-client = r"D:\Files\MSFT 685 (E5 Security Usage Study) Sample Disposition File_InnovateMR.xlsx"
-edge = r"D:\Files\ProjectReport_INV11872001_02-23-25_07.38am_PST.csv_23-2-2025_21-8-21.csv"
 
-data_file = data_file_initiate(input_client_file=client, input_edge_file=edge)
+client = r"/content/MSFT 689_Strike File_v1.1.xlsx"
 
-'''Edge = edge_area(client,edge)
+edge = r"/content/ProjectReport_INV12167887_03-27-25_05.22pm_PDT.csv_28-3-2025_5-53-22.csv"
+
+
+data_file = DatafileInitiate(input_client_file=client, input_edge_file=edge)
+
+'''Edge = EdgeArea(client,edge)
 Edge.edge_file()
 
-Client = client_area(client, edge)
+Client = ClientArea(client, edge)
 Client.client_file()
 
 Filter = filter(client, edge)
 Filter.filter_data()'''
 
-vendor_call = vendor_file(client,edge)
-vendor_call.vendor_list()
+vendor_call = VendorArea(client,edge)
+vendor_call.column_drop()
+
+
